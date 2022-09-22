@@ -1,0 +1,87 @@
+---
+title: "Biodistribution"
+author: "Zach McKay"
+date: "2022-09-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+library(tidyverse)
+library(readr)
+
+```
+
+## Separate data sets into separate objects and clean up data
+
+```{r}
+glymphatic_biodistribution <- read_csv("glymphatic_biodistribution.csv")
+View(glymphatic_biodistribution)
+may <- glymphatic_biodistribution[c(1:19),]
+july <- glymphatic_biodistribution[c(20:52),]
+august_toggle <- glymphatic_biodistribution[c(53:64),]
+head(may)
+str(may)
+
+may <- rename(may, "mouse" = "May '22", "ltr" = 2, "intrvl" = 3, "ser_pfu" = 4,
+              "spleen_mg" = 5, "spleen_pfu_g" = 6, "ipsi_mg" = 7,
+              "ipsi_pfu_g" = 8, "contra_mg" = 9, "contra_pfu_g" = 10, 
+              "kidney_mg" = 11, "kidney_pfu_g" = 12, "cln_mg" = 13, "cln_pfu_g" = 14)
+may <- may[-1, ]
+may <- may[-18,]
+may <- may[,-15:-19]
+may <- may[rowSums(is.na(may)) != ncol(may),]
+
+may <- mutate(may ,add_column("may_22")) %>%
+       rename("Obs pt" = "add_column(\"may_22\")")
+head(may)
+str(may)
+str(july)
+
+head(july)
+str(july)
+july <- rename(july, "mouse" = "May '22", "ltr" = 2, "intrvl" = 3, "spleen_mg" = 4,
+               "spleen_plaques" = 5, "spleen_pfu_g" = 6, "ipsi_mg" = 7,
+              "ipsi_plaques" = 8, "ipsi_pfu_g" = 9, "contra_mg" = 10,  
+              "contra_plaques" = 11, "contra_pfu_g" = 12, 
+              "kidney_mg" = 13, "kidney_plaques" = 14, "kidney_pfu_g" = 15,
+              "cln_mg" = 16, 
+              "cln_plaques" = 17, "cln_pfu_g" = 18)
+july <- july[-1:-2,]
+july <- july[rowSums(is.na(july)) != ncol(july),]
+
+july <- mutate(july ,add_column("july_22")) %>%
+       rename("Obs pt" = "add_column(\"july_22\")")
+head(july)
+str(july)
+
+head(august_toggle)
+str(august_toggle)
+august_toggle <- rename(august_toggle, "mouse" = "May '22", "ltr" = 2, 
+                        "intrvl" = 3, 
+                        "ipsi_mg" = 4, "ipsi_plaques" = 5, "ipsi_pfu_g" = 6,
+                        "contra_mg" = 7, "contra_plaques" = 8, 
+                        "contra_pfu_g" = 9,
+                        "cln_mg" = 10, "cln_plaques" = 11, "cln_pfu_g" = 12)
+august_toggle <- august_toggle[-1:-2,]
+august_toggle <- august_toggle[,-13:-19]
+august_toggle <- august_toggle[rowSums(is.na(august_toggle)) != ncol(august_toggle),]
+
+august_toggle <- mutate(august_toggle ,add_column("august_22")) %>%
+       rename("Obs pt" = "add_column(\"august_22\")")
+head(august_toggle)
+str(august_toggle)
+biodist <- full_join(may, july)
+biodist <- full_join(biodist, august_toggle)
+biodist <- biodist[rowSums(is.na(biodist)) != ncol(biodist),]
+biodist$intrvl <- biodist$intrvl %>% str_remove("hpi")
+biodist$intrvl <- biodist$intrvl %>% as.numeric()
+biodist$ser_pfu <- biodist$ser_pfu %>% as.numeric()
+##biodist[c(3:4, 6:7, 9:10, 12:14)] <- sapply(biodist[c(3:4, 6:7, 9:10, 12:14)], as.numeric)
+#Trying to coerce asnumeric without forcing NA
+
+```
+
