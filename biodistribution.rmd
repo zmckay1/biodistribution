@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r, include = FALSE}
@@ -15,17 +15,36 @@ library(readr)
 
 ```
 
-## Separate data sets into separate objects and clean up data
+# Import and view data
 
 ```{r}
 glymphatic_biodistribution <- read_csv("glymphatic_biodistribution.csv")
-View(glymphatic_biodistribution)
-may <- glymphatic_biodistribution[c(1:19),]
-july <- glymphatic_biodistribution[c(20:52),]
-august_toggle <- glymphatic_biodistribution[c(53:64),]
-head(may)
-str(may)
+head(glymphatic_biodistribution)
+```
 
+
+## Separate data sets into separate objects and clean up data
+
+```{r}
+may <- glymphatic_biodistribution[c(1:19),]
+head(may)
+
+```
+
+```{r}
+july <- glymphatic_biodistribution[c(20:52),]
+head(july)
+```
+
+```{r}
+august_toggle <- glymphatic_biodistribution[c(53:64),]
+head(august_toggle)
+```
+
+
+# Clean up data
+
+```{r}
 may <- rename(may, "mouse" = "May '22", "ltr" = 2, "intrvl" = 3, "ser_pfu" = 4,
               "spleen_mg" = 5, "spleen_pfu_g" = 6, "ipsi_mg" = 7,
               "ipsi_pfu_g" = 8, "contra_mg" = 9, "contra_pfu_g" = 10, 
@@ -36,14 +55,17 @@ may <- may[,-15:-19]
 may <- may[rowSums(is.na(may)) != ncol(may),]
 
 may <- mutate(may ,add_column("may_22")) %>%
-       rename("Obs pt" = "add_column(\"may_22\")")
+       rename("obs_pt" = "add_column(\"may_22\")")
 head(may)
-str(may)
-str(july)
 
-head(july)
-str(july)
-july <- rename(july, "mouse" = "May '22", "ltr" = 2, "intrvl" = 3, "spleen_mg" = 4,
+
+
+```
+
+```{r}
+
+july <- rename(july, "mouse" = "May '22", "ltr" = 2, "intrvl" = 3, 
+               "spleen_mg" = 4,
                "spleen_plaques" = 5, "spleen_pfu_g" = 6, "ipsi_mg" = 7,
               "ipsi_plaques" = 8, "ipsi_pfu_g" = 9, "contra_mg" = 10,  
               "contra_plaques" = 11, "contra_pfu_g" = 12, 
@@ -54,12 +76,12 @@ july <- july[-1:-2,]
 july <- july[rowSums(is.na(july)) != ncol(july),]
 
 july <- mutate(july ,add_column("july_22")) %>%
-       rename("Obs pt" = "add_column(\"july_22\")")
+       rename("obs_pt" = "add_column(\"july_22\")")
 head(july)
-str(july)
 
-head(august_toggle)
-str(august_toggle)
+```
+
+```{r}
 august_toggle <- rename(august_toggle, "mouse" = "May '22", "ltr" = 2, 
                         "intrvl" = 3, 
                         "ipsi_mg" = 4, "ipsi_plaques" = 5, "ipsi_pfu_g" = 6,
@@ -71,17 +93,194 @@ august_toggle <- august_toggle[,-13:-19]
 august_toggle <- august_toggle[rowSums(is.na(august_toggle)) != ncol(august_toggle),]
 
 august_toggle <- mutate(august_toggle ,add_column("august_22")) %>%
-       rename("Obs pt" = "add_column(\"august_22\")")
+       rename("obs_pt" = "add_column(\"august_22\")")
 head(august_toggle)
-str(august_toggle)
+
+```
+
+# Combine data into new set
+
+```{r}
 biodist <- full_join(may, july)
 biodist <- full_join(biodist, august_toggle)
 biodist <- biodist[rowSums(is.na(biodist)) != ncol(biodist),]
 biodist$intrvl <- biodist$intrvl %>% str_remove("hpi")
-biodist$intrvl <- biodist$intrvl %>% as.numeric()
-biodist$ser_pfu <- biodist$ser_pfu %>% as.numeric()
-##biodist[c(3:4, 6:7, 9:10, 12:14)] <- sapply(biodist[c(3:4, 6:7, 9:10, 12:14)], as.numeric)
-#Trying to coerce asnumeric without forcing NA
+biodist$spleen_pfu_g <- biodist$spleen_pfu_g %>% str_remove("ND")
+biodist$cln_pfu_g <- biodist$cln_pfu_g %>% str_remove("nd")
+biodist$spleen_plaques <- biodist$spleen_plaques %>% na_if("ND")
+biodist$cln__plaques <- biodist$cln_plaques %>% na_if("ND")
 
+biodist[3:14] <- sapply(biodist[3:14], as.numeric)
+add_1 <- function(x) {
+  return(x + 1)
+}
+biodist[4:14] <- data.frame(lapply(biodist[4:14], add_1))
+```
+
+# Create and save plots by tissue type
+
+```{r}
+cln <- ggplot(biodist, aes(x = as.factor(intrvl), y = cln_pfu_g)) 
+ipsi <- ggplot(biodist, aes(x = as.factor(intrvl), y = ipsi_pfu_g)) 
+contra <- ggplot(biodist, aes(x = as.factor(intrvl), y = contra_pfu_g)) 
+kidney <- ggplot(biodist, aes(x = as.factor(intrvl), y = kidney_pfu_g)) 
+spleen <- ggplot(biodist, aes(x = as.factor(intrvl), y = spleen_pfu_g))
+
+
+spleen +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_y_log10() +
+  xlab("HPI") +
+  ylab("Spleen pfu/g")
+ggsave("spleen.png", width = 5, height = 5)
+cln +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_y_log10() +
+  xlab("HPI") +
+  ylab("CLN pfu/g")
+ggsave("cln.png", width = 5, height = 5)
+ipsi +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_y_log10() +
+  xlab("HPI") +
+  ylab("Ipsi pfu/g")
+ggsave("ipsi.png", width = 5, height = 5)
+contra +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_y_log10() +
+  xlab("HPI") +
+  ylab("Contra pfu/g")
+ggsave("contra.png", width = 5, height = 5)
+kidney +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_y_log10() +
+  xlab("HPI") +
+  ylab("Kidney pfu/g")
+ggsave("kidney.png", width = 5, height = 5)
+```
+
+# Combine all data into singl graph
+
+```{r}
+pfu_g <- biodist %>%
+  select(intrvl, mouse, ltr, spleen_pfu_g, ipsi_pfu_g, contra_pfu_g, kidney_pfu_g,
+               cln_pfu_g, obs_pt)
+pfu_g <- pfu_g %>%
+  rename("Spleen" = "spleen_pfu_g", "Ipsi" = "ipsi_pfu_g", 
+         "Contra" = "contra_pfu_g", "Kidney" = "kidney_pfu_g",
+         "CLN" = "cln_pfu_g")
+pfu_g <- pfu_g %>%
+  pivot_longer(cols = c(4:8), names_to = "tissue", values_to = "pfu_g")
+
+
+head(pfu_g)
+
+```
+
+# Plot all tissue against each other
+
+```{r}
+all_tissue <- ggplot(pfu_g, aes(x = as.factor(tissue), y = pfu_g)) 
+
+all_tissue +
+  geom_boxplot(aes(fill = factor(intrvl))) +
+  geom_point(aes(fill = factor(intrvl)), position = position_jitterdodge()) +
+  scale_y_log10() +
+  xlab("Tissue") +
+  ylab("pfu/g") 
+ggsave("all_tissue.png", width = 5, height = 5)
+
+```
+
+# Figure 1 - July only CLN and brain
+
+```{r}
+fig1_data <-biodist %>%
+  filter(obs_pt == "july_22") %>%
+  filter(intrvl != 96) %>%
+  select(intrvl, mouse, ltr, ipsi_pfu_g, contra_pfu_g, cln_pfu_g, kidney_pfu_g,
+         obs_pt)
+
+fig1_data <- fig1_data %>%
+  rename("Ipsi" = "ipsi_pfu_g", 
+         "Contra" = "contra_pfu_g",
+         "CLN" = "cln_pfu_g", "Kidney" = "kidney_pfu_g")
+fig1_data <- fig1_data %>%
+  pivot_longer(cols = c(4:7), names_to = "tissue", values_to = "pfu_g")
+fig1_data$tissue <- factor(fig1_data$tissue, levels = c("Ipsi", "Contra", 
+                                                  "CLN", "Kidney"))
+head(fig1_data)
+```
+
+
+
+# Create graphs for fig1
+
+```{r}
+fig1 <- ggplot(subset(fig1_data,!is.na(pfu_g)), 
+               aes(x = as.factor(tissue), y = pfu_g)) 
+
+fig1  +
+  geom_bar(aes(fill = as.factor(intrvl)), position = "dodge", 
+           stat = "summary", width = .5)  +
+  geom_point(aes(fill = factor(intrvl)), 
+             position = position_jitterdodge(dodge.width = .5,
+                                             jitter.width = 0.1)) +  
+  stat_summary(aes(fill = as.factor(intrvl)),
+               fun.args =  list(mult = 1), 
+               geom = "errorbar", color = "black", 
+               position = position_dodge2(padding = .3),
+               width = .5) +
+  xlab("Tissue") +
+  ylab("pfu/g") +
+  scale_y_log10(limits =c(1,1.5e7)) +
+  scale_fill_discrete(name = "HPI") 
+ggsave("fig1_july.png", width = 5, height = 5)
+```
+
+
+# Figure 2 - Toggle experiment August
+
+```{r}
+
+fig2_data <- biodist %>%
+  filter(obs_pt == "august_22") %>%
+  select(mouse, ltr, intrvl, ipsi_pfu_g, contra_pfu_g, cln_pfu_g, obs_pt)
+fig2_data <- fig2_data %>%
+  rename("Ipsi" = "ipsi_pfu_g", 
+         "Contra" = "contra_pfu_g",
+         "CLN" = "cln_pfu_g")
+fig2_data <- fig2_data %>%
+  pivot_longer(cols = c(4:6), names_to = "tissue", values_to = "pfu_g")
+fig2_data$tissue <- factor(fig2_data$tissue, levels = c("Ipsi", "Contra", 
+                                                  "CLN"))
+head(fig2_data)
+```
+
+
+```{r}
+fig2 <- ggplot(subset(fig2_data, !is.na(pfu_g)),
+               aes(x = as.factor(tissue), y = pfu_g), na.rm = TRUE)
+?position_jitterdodge
+fig2 +
+  geom_bar(aes(fill = as.factor(mouse)), position = position_dodge2(), 
+           stat = "summary", width = .5) +
+  geom_point(aes(fill = factor(mouse)), 
+             position = position_jitterdodge(jitter.width = .1,
+                                             dodge.width = .5)) +
+  stat_summary(aes(fill = as.factor(mouse)), fun.args =  list(mult = 1), 
+               geom = "errorbar", color = "black", 
+               position = position_dodge2(padding = .3),
+               width = .5) +
+  xlab("Tissue") +
+  ylab("pfu/g") +
+  scale_y_log10(limits = c(1,1.5e7)) +
+  scale_fill_discrete(name = "Transgenic")
+ggsave("fig2_aug.png", width = 5, height = 5)
 ```
 
