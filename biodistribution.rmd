@@ -6,16 +6,19 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 ```
 
 ```{r, include = FALSE}
+warning = -1
 library(tidyverse)
 library(readr)
 
 ```
 
 # Import and view data
+
+We can see that the data structure has caused the column names to not be imported correctly, and that the observation point is not recorded for each observation but rather at the top of each set of observations. 
 
 ```{r}
 glymphatic_biodistribution <- read_csv("glymphatic_biodistribution.csv")
@@ -24,6 +27,8 @@ head(glymphatic_biodistribution)
 
 
 ## Separate data sets into separate objects and clean up data
+
+We will clean up the data by first splitting the data into three separate sets so that each observation point can be cleaned up for later recombination.
 
 ```{r}
 may <- glymphatic_biodistribution[c(1:19),]
@@ -44,6 +49,8 @@ head(august_toggle)
 
 # Clean up data
 
+We need to rename the columns to useful descriptors for each observation. We will use the mouse, ltr (for letter), and total pfu, weight, and calculate pfu/g based on what is available for each tissue type. We will then delete blank or unnecessary rows (rows that currently contain data type), and an additional column for the observaiton point for later recombinaiton.
+
 ```{r}
 may <- rename(may, "mouse" = "May '22", "ltr" = 2, "intrvl" = 3, "ser_pfu" = 4,
               "spleen_mg" = 5, "spleen_pfu_g" = 6, "ipsi_mg" = 7,
@@ -59,8 +66,9 @@ may <- mutate(may ,add_column("may_22")) %>%
 head(may)
 
 
-
 ```
+
+We will perform similar data cleanup for the July data set.
 
 ```{r}
 
@@ -81,6 +89,8 @@ head(july)
 
 ```
 
+And the same process for the August data set.
+
 ```{r}
 august_toggle <- rename(august_toggle, "mouse" = "May '22", "ltr" = 2, 
                         "intrvl" = 3, 
@@ -99,6 +109,8 @@ head(august_toggle)
 ```
 
 # Combine data into new set
+
+Now we can recombine the cleaned up data sets into a single data set. We also want to convert each data type to numeric where possible and convert some observations to n/a. Also, we will perform our analyses using logarithmic scales, so to correct for 0 values, we will perform our analyses by using x+1, so each numeric value will have 1 added to it.
 
 ```{r}
 biodist <- full_join(may, july)
@@ -119,12 +131,19 @@ biodist[4:14] <- data.frame(lapply(biodist[4:14], add_1))
 
 # Create and save plots by tissue type
 
+We look at the data pooled across observation points for each graph by tissue type and separate the data by time point. Since the August data set also includes the non-transgenic mice, we will filter those mice out for the final analysis. Each graph will be saved for later use
+
 ```{r}
-cln <- ggplot(biodist, aes(x = as.factor(intrvl), y = cln_pfu_g)) 
-ipsi <- ggplot(biodist, aes(x = as.factor(intrvl), y = ipsi_pfu_g)) 
-contra <- ggplot(biodist, aes(x = as.factor(intrvl), y = contra_pfu_g)) 
-kidney <- ggplot(biodist, aes(x = as.factor(intrvl), y = kidney_pfu_g)) 
-spleen <- ggplot(biodist, aes(x = as.factor(intrvl), y = spleen_pfu_g))
+transgenic_biodist <- biodist %>%
+  filter(mouse != "Ntg")
+cln <- ggplot(transgenic_biodist, aes(x = as.factor(intrvl), y = cln_pfu_g)) 
+ipsi <- ggplot(transgenic_biodist, aes(x = as.factor(intrvl), y = ipsi_pfu_g)) 
+contra <- ggplot(transgenic_biodist, aes(x = as.factor(intrvl), 
+                                         y = contra_pfu_g)) 
+kidney <- ggplot(transgenic_biodist, aes(x = as.factor(intrvl), 
+                                         y = kidney_pfu_g)) 
+spleen <- ggplot(transgenic_biodist, aes(x = as.factor(intrvl), 
+                                         y = spleen_pfu_g))
 
 
 spleen +
@@ -164,12 +183,14 @@ kidney +
 ggsave("kidney.png", width = 5, height = 5)
 ```
 
-# Combine all data into singl graph
+# Combine all data into single graph
+
+We will create a data set from the biodistribution data set that only includes the pfu/g and necessary comparators (intrvl, mouse, ltr, obs_pt).
 
 ```{r}
 pfu_g <- biodist %>%
-  select(intrvl, mouse, ltr, spleen_pfu_g, ipsi_pfu_g, contra_pfu_g, kidney_pfu_g,
-               cln_pfu_g, obs_pt)
+  select(intrvl, mouse, ltr, spleen_pfu_g, ipsi_pfu_g, contra_pfu_g,
+         kidney_pfu_g,cln_pfu_g, obs_pt)
 pfu_g <- pfu_g %>%
   rename("Spleen" = "spleen_pfu_g", "Ipsi" = "ipsi_pfu_g", 
          "Contra" = "contra_pfu_g", "Kidney" = "kidney_pfu_g",
@@ -184,8 +205,11 @@ head(pfu_g)
 
 # Plot all tissue against each other
 
+We can then plot all of the tissues onto a single graph. We will filter out all of the non-transgenic mice into this analysis as done previously.
+
 ```{r}
-all_tissue <- ggplot(pfu_g, aes(x = as.factor(tissue), y = pfu_g)) 
+all_tissue <- ggplot(pfu_g %>% filter(mouse != "Ntg"),
+                     aes(x = as.factor(tissue), y = pfu_g)) 
 
 all_tissue +
   geom_boxplot(aes(fill = factor(intrvl))) +
@@ -198,6 +222,8 @@ ggsave("all_tissue.png", width = 5, height = 5)
 ```
 
 # Figure 1 - July only CLN and brain
+
+We will look at only July for the timecourse, so we will create a data set consisting only of the July data and pivot the data to create columns for tissue type. Also, the 96 hour timepoint had several samples of poor quality, so we will exclude the the 9g hour timepoint from the final analysis.
 
 ```{r}
 fig1_data <-biodist %>%
@@ -220,6 +246,8 @@ head(fig1_data)
 
 
 # Create graphs for fig1
+
+We will group by tissue type and split each tissue by time point. Each individual observation is plotted as a dot, with the mean plotted as a bar and the standard error plotted for the error bar.
 
 ```{r}
 fig1 <- ggplot(subset(fig1_data,!is.na(pfu_g)), 
@@ -246,6 +274,8 @@ ggsave("fig1_july.png", width = 5, height = 5)
 
 # Figure 2 - Toggle experiment August
 
+We will perform a similar analysis for the August time point which is focused on the receptor toggling. We will compare each tissue type by transgenic and non-transgenic mice, so we will create a data set consisting of the August observation point that does include both transgenic and non-transgenic mice.
+
 ```{r}
 
 fig2_data <- biodist %>%
@@ -262,6 +292,7 @@ fig2_data$tissue <- factor(fig2_data$tissue, levels = c("Ipsi", "Contra",
 head(fig2_data)
 ```
 
+We will graph the August data the same as the July data.
 
 ```{r}
 fig2 <- ggplot(subset(fig2_data, !is.na(pfu_g)),
@@ -282,5 +313,10 @@ fig2 +
   scale_y_log10(limits = c(1,1.5e7)) +
   scale_fill_discrete(name = "Transgenic")
 ggsave("fig2_aug.png", width = 5, height = 5)
+```
+
+
+```{r}
+warning = 0
 ```
 
