@@ -2,7 +2,9 @@
 title: "Biodistribution"
 author: "Zach McKay"
 date: "2022-09-22"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -221,7 +223,7 @@ ggsave("all_tissue.png", width = 5, height = 5)
 
 ```
 
-# Figure 1 - July only CLN and brain
+# Figure 1 - July only CLN, brain, and kidney
 
 We will look at only July for the timecourse, so we will create a data set consisting only of the July data and pivot the data to create columns for tissue type. Also, the 96 hour timepoint had several samples of poor quality, so we will exclude the the 9g hour timepoint from the final analysis.
 
@@ -316,7 +318,4 @@ ggsave("fig2_aug.png", width = 5, height = 5)
 ```
 
 
-```{r}
-warning = 0
-```
 
