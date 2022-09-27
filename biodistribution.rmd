@@ -364,6 +364,7 @@ b16_graph <-
                width = 0.5) +
   xlab("Tissue") +
   ylab("pfu/g") +
-  scale_y_log10()
+  scale_y_log10(limits = c(1,1.5e7))
 b16_graph
+ggsave("b16.png", width = 5, height = 5)
 ```
